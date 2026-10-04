@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Tile servers require a Referer; Django's default policy ("same-origin") strips it. -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>Fuel Route Map</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      :root {
+        --ink: #1d2433;
+        --muted: #667085;
+        --line: #e4e7ec;
+        --accent: #2f6fed;
+        --fuel: #e8590c;
+        --bg: #fff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.45 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        display: grid;
+        grid-template-columns: 360px 1fr;
+        height: 100vh;
+      }
+      aside {
+        overflow: auto;
+        border-right: 1px solid var(--line);
+        padding: 20px;
+      }
+      #map {
+        height: 100vh;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px;
+      }
+      .stat b {
+        display: block;
+        font-size: 18px;
+      }
+      .stat span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .stop {
+        border-left: 3px solid var(--fuel);
+        padding: 6px 10px;
+        margin: 0 0 10px;
+        cursor: pointer;
+      }
+      .stop:hover {
+        background: #fff4ec;
+      }
+      .stop .n {
+        color: var(--fuel);
+        font-weight: 600;
+      }
+      .stop small {
+        color: var(--muted);
+        display: block;
+      }
+      .err {
+        color: #b42318;
+        background: #fef3f2;
+        padding: 12px;
+        border-radius: 8px;
+      }
+      .pin {
+        background: var(--fuel);
+        color: #fff;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        font-weight: 700;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+      @media (max-width: 760px) {
+        body {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto 60vh;
+          height: auto;
+        }
+        #map {
+          height: 60vh;
+        }
+        aside {
+          border-right: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <!-- Template variables are written without inner spaces and kept on short
+     lines so code formatters (Prettier, format-on-save) can't split them. -->
+      {% if error %}
+      <h1>Route could not be planned</h1>
+      <p class="err">{{error}}</p>
+      {% else %}
+      <h1>{{plan.summary.start.name}} → {{plan.summary.finish.name}}</h1>
+      <p class="sub">
+        {{plan.summary.total_distance_miles}} mi ·
+        {{plan.summary.estimated_drive_time_hours}} h driving
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <b>${{plan.summary.total_fuel_cost}}</b>
+          <span>Total fuel cost</span>
+        </div>
+        <div class="stat">
+          <b>{{plan.summary.number_of_fuel_stops}}</b>
+          <span>Fuel stops</span>
+        </div>
+        <div class="stat">
+          <b>{{plan.summary.total_gallons_purchased}}</b>
+          <span>Gallons bought</span>
+        </div>
+        <div class="stat">
+          <b>{{plan.summary.average_price_per_gallon|default:"–"}}</b>
+          <span>Avg price paid ($/gal)</span>
+        </div>
+      </div>
+      {% for s in plan.fuel_stops %}
+      <div class="stop" data-i="{{forloop.counter0}}">
+        <span class="n">Stop {{s.stop_number}}</span>
+        · mile {{s.mile_marker}}<br />
+        <b>{{s.name}}</b>
+        <small>{{s.address}}, {{s.city}}, {{s.state}}</small>
+        <small>
+          ${{s.price_per_gallon}}/gal · {{s.gallons_purchased}} gal ·
+          ${{s.cost}}
+        </small>
+      </div>
+      {% empty %}
+      <p class="sub">No fuel stop needed: the starting tank covers the trip.</p>
+      {% endfor %} {% endif %}
+    </aside>
+    <div id="map"></div>
+    {{plan.map|json_script:"geo"}}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const map = L.map("map");
+      // Esri World Street Map: free, no API key. If its tiles fail to load,
+      // fall back to OpenStreetMap's own tiles.
+      const esri = L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+          maxZoom: 19,
+          attribution:
+            "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors",
+        },
+      ).addTo(map);
+      let tileErrors = 0;
+      esri.on("tileerror", () => {
+        if (++tileErrors === 5) {
+          map.removeLayer(esri);
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors",
+          }).addTo(map);
+        }
+      });
+      const data = JSON.parse(document.getElementById("geo").textContent);
+      const stopMarkers = [];
+      if (data) {
+        const layer = L.geoJSON(data, {
+          style: { color: "#2f6fed", weight: 5, opacity: 0.85 },
+          pointToLayer: (f, latlng) => {
+            const p = f.properties;
+            if (p.kind === "fuel_stop") {
+              const m = L.marker(latlng, {
+                icon: L.divIcon({
+                  className: "",
+                  html: `<div class="pin">${p.stop_number}</div>`,
+                  iconSize: [24, 24],
+                }),
+              }).bindPopup(
+                `<b>Stop ${p.stop_number}: ${p.name}</b><br>$${p.price_per_gallon}/gal<br>${p.gallons_purchased} gal = $${p.cost}<br>mile ${p.mile_marker}`,
+              );
+              stopMarkers.push(m);
+              return m;
+            }
+            return L.circleMarker(latlng, {
+              radius: 8,
+              color: "#fff",
+              weight: 2,
+              fillOpacity: 1,
+              fillColor: p.kind === "start" ? "#12b76a" : "#d92d20",
+            }).bindPopup(`<b>${p.kind}</b>: ${p.name}`);
+          },
+        }).addTo(map);
+        map.fitBounds(layer.getBounds(), { padding: [30, 30] });
+        document.querySelectorAll(".stop").forEach((el) =>
+          el.addEventListener("click", () => {
+            const m = stopMarkers[+el.dataset.i];
+            map.setView(m.getLatLng(), 10);
+            m.openPopup();
+          }),
+        );
+      } else {
+        map.setView([39.5, -98.35], 4);
+      }
+    </script>
+  </body>
+</html>

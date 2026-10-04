@@ -1,0 +1,7 @@
+line-length = 120
+target-version = "py312"
+extend-exclude = ["planner/migrations"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["B905"]  # zip() without strict= is intentional on equal-length arrays

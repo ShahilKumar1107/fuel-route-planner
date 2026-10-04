@@ -1,0 +1,375 @@
+{
+  "info": {
+    "name": "Fuel Route Planner API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Optimal fuel stops along a US driving route. Set baseUrl if not running on localhost:8000."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health",
+            ""
+          ]
+        }
+      }
+    },
+    {
+      "name": "1. New York -> Los Angeles (GET)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/?start=New York, NY&finish=Los Angeles, CA",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "New York, NY"
+            },
+            {
+              "key": "finish",
+              "value": "Los Angeles, CA"
+            }
+          ]
+        },
+        "description": "Coast to coast. Run it twice: the 2nd call shows routing_api_calls=0 and ~3 ms."
+      }
+    },
+    {
+      "name": "2. Chicago -> Dallas (POST)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Chicago, IL\",\n  \"finish\": \"Dallas, TX\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "3. Strictly cheapest plan (stop_penalty=0)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"New York, NY\",\n  \"finish\": \"Los Angeles, CA\",\n  \"stop_penalty\": 0,\n  \"include_geometry\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ]
+        },
+        "description": "No per-stop cost: lowest possible fuel bill, more stops."
+      }
+    },
+    {
+      "name": "4. Empty tank at start",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Seattle, WA\",\n  \"finish\": \"Miami, FL\",\n  \"start_fuel_gallons\": 0,\n  \"include_geometry\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ]
+        },
+        "description": "Every gallon of the trip is bought on the route."
+      }
+    },
+    {
+      "name": "5. Coordinates as input",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/?start=39.7392,-104.9903&finish=36.1699,-115.1398",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "39.7392,-104.9903"
+            },
+            {
+              "key": "finish",
+              "value": "36.1699,-115.1398"
+            }
+          ]
+        },
+        "description": "Denver -> Las Vegas using lat,lon."
+      }
+    },
+    {
+      "name": "6. Short trip, no stop needed",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/?start=Chicago, IL&finish=Milwaukee, WI",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "Chicago, IL"
+            },
+            {
+              "key": "finish",
+              "value": "Milwaukee, WI"
+            }
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "Error: typo in city",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/?start=Chicgo, IL&finish=Dallas, TX",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "Chicgo, IL"
+            },
+            {
+              "key": "finish",
+              "value": "Dallas, TX"
+            }
+          ]
+        },
+        "description": "400 with a 'Did you mean' hint, and no routing call is made."
+      }
+    },
+    {
+      "name": "Error: range too short",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/?start=New York, NY&finish=Los Angeles, CA&range_miles=60",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "New York, NY"
+            },
+            {
+              "key": "finish",
+              "value": "Los Angeles, CA"
+            },
+            {
+              "key": "range_miles",
+              "value": "60"
+            }
+          ]
+        },
+        "description": "422 no_feasible_fuel_plan."
+      }
+    },
+    {
+      "name": "Error: non-US location",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/?start=Paris, France&finish=Dallas, TX",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "Paris, France"
+            },
+            {
+              "key": "finish",
+              "value": "Dallas, TX"
+            }
+          ]
+        },
+        "description": ""
+      }
+    },
+    {
+      "name": "Map page (open in browser)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/route-plan/map/?start=New York, NY&finish=Los Angeles, CA",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "route-plan",
+            "map",
+            ""
+          ],
+          "query": [
+            {
+              "key": "start",
+              "value": "New York, NY"
+            },
+            {
+              "key": "finish",
+              "value": "Los Angeles, CA"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
